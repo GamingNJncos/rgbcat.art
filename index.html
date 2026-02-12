@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGBCat.art - Paint</title>
+<style>
+  :root {
+    --bg-darkest: #0a0a0f;
+    --bg-dark: #12121a;
+    --bg-medium: #1a1a26;
+    --bg-light: #222233;
+    --bg-lighter: #2a2a3d;
+    --bg-surface: #1e1e2e;
+    --chrome-dark: #18182a;
+    --chrome-mid: #252540;
+    --chrome-light: #35355a;
+    --chrome-highlight: #45457a;
+    --chrome-shadow: #0d0d18;
+    --accent-cyan: #00d4ff;
+    --accent-mid: #0088cc;
+    --accent-blue: #2244aa;
+    --accent-royal: #1a2980;
+    --accent-glow: rgba(0, 212, 255, 0.15);
+    --accent-glow-strong: rgba(0, 212, 255, 0.3);
+    --text-primary: #c8c8e0;
+    --text-dim: #666688;
+    --text-disabled: #444466;
+    --text-bright: #e0e0ff;
+    --neon-glow: 0 0 4px rgba(0, 212, 255, 0.3), 0 0 8px rgba(0, 212, 255, 0.1);
+    --inner-bevel-light: #3a3a5e;
+    --inner-bevel-dark: #0e0e1a;
+    --scrollbar-width: 17px;
+    --scrollbar-bg: #1a1a2e;
+    --scrollbar-thumb: #2e2e4a;
+    --scrollbar-arrow: #555577;
+    --scanline-opacity: 0.03;
+    --watermark-display: block;
+    --titlebar-h: 28px;
+    --menubar-h: 24px;
+    --toolbar-w: 58px;
+    --colorbar-h: 50px;
+    --statusbar-h: 22px;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg-darkest);
+    font-family: 'Segoe UI', 'MS Sans Serif', Tahoma, Geneva, sans-serif;
+    font-size: 12px; color: var(--text-primary);
+    -webkit-font-smoothing: none;
+  }
+
+  /* MAIN WINDOW */
+  #mspaint-window {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    background: var(--bg-dark);
+    border: 1px solid var(--chrome-light);
+    box-shadow: inset 1px 1px 0 var(--inner-bevel-light), inset -1px -1px 0 var(--inner-bevel-dark), 0 0 20px rgba(0, 212, 255, 0.05);
+  }
+  #mspaint-window::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 9999;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,var(--scanline-opacity)) 2px, rgba(0,0,0,var(--scanline-opacity)) 4px);
+  }
+  #mspaint-window::before {
+    content: ''; position: absolute; inset: -1px;
+    border: 1px solid rgba(0, 212, 255, 0.1); pointer-events: none; z-index: 9998;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.04), inset 0 0 12px rgba(0, 212, 255, 0.02);
+  }
+
+  /* TITLE BAR */
+  .title-bar {
+    height: var(--titlebar-h); display: flex; align-items: center; padding: 0 3px;
+    background: linear-gradient(90deg, var(--accent-royal) 0%, var(--accent-mid) 40%, var(--accent-cyan) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 0 8px rgba(0, 212, 255, 0.2);
+    flex-shrink: 0; user-select: none; position: relative; z-index: 100;
+  }
+  .title-bar-icon { width: 18px; height: 18px; margin-right: 4px; display: flex; align-items: center; justify-content: center; }
+  .title-bar-icon svg { width: 16px; height: 16px; filter: drop-shadow(0 0 2px rgba(0, 212, 255, 0.5)); }
+  .title-bar-text { flex: 1; font-size: 12px; font-weight: bold; color: #fff; text-shadow: 0 0 8px rgba(0, 212, 255, 0.5), 1px 1px 0 rgba(0,0,0,0.4); letter-spacing: 0.3px; }
+  .title-bar-controls { display: flex; gap: 2px; }
+  .title-btn {
+    width: 18px; height: 16px; background: var(--chrome-mid);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .title-btn:active { border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow); background: var(--chrome-dark); }
+  .title-btn span { font-size: 10px; line-height: 1; color: var(--text-dim); font-family: 'Courier New', monospace; font-weight: bold; }
+
+  /* MENU BAR */
+  .menu-bar {
+    height: var(--menubar-h); display: flex; align-items: center; padding: 0 2px;
+    background: var(--bg-medium); border-bottom: 1px solid var(--chrome-shadow);
+    border-top: 1px solid var(--chrome-dark); box-shadow: inset 0 1px 0 var(--chrome-mid);
+    flex-shrink: 0; user-select: none; position: relative; z-index: 200;
+  }
+  .menu-item-wrapper { position: relative; }
+  .menu-item {
+    padding: 2px 8px; color: var(--text-disabled); font-size: 12px; cursor: pointer;
+    text-decoration: none; display: block; background: none; border: none; font-family: inherit;
+  }
+  .menu-item:hover { background: var(--bg-lighter); color: var(--text-dim); box-shadow: inset 0 0 4px rgba(0, 212, 255, 0.05); }
+  .menu-item.active {
+    background: var(--bg-lighter); color: var(--text-dim);
+    border: 1px solid; border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow);
+  }
+  .menu-item .underline { text-decoration: underline; }
+
+  /* DROPDOWN MENUS */
+  .dropdown-menu {
+    display: none; position: absolute; top: 100%; left: 0; min-width: 180px;
+    background: var(--bg-medium);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.5), 0 0 8px rgba(0, 212, 255, 0.03);
+    padding: 2px 0; z-index: 300;
+  }
+  .dropdown-menu.open { display: block; }
+  .dropdown-item {
+    display: block; width: 100%; padding: 4px 24px; color: var(--text-disabled);
+    font-size: 12px; cursor: pointer; text-decoration: none; background: none;
+    border: none; font-family: inherit; text-align: left; white-space: nowrap;
+    min-height: 22px;
+  }
+  .dropdown-item:hover { background: linear-gradient(90deg, var(--accent-royal), var(--accent-mid)); color: var(--text-dim); }
+  .dropdown-separator { height: 1px; margin: 3px 4px; background: var(--chrome-shadow); border-bottom: 1px solid var(--chrome-mid); }
+
+  /* WORK AREA */
+  .work-area { flex: 1; display: flex; min-height: 0; position: relative; }
+
+  /* TOOL PALETTE */
+  .tool-palette {
+    width: var(--toolbar-w); background: var(--bg-medium);
+    border-right: 1px solid var(--chrome-shadow); box-shadow: inset -1px 0 0 var(--chrome-mid);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 4px 3px; gap: 1px; flex-shrink: 0; user-select: none;
+  }
+  .tool-group {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1px; padding: 3px;
+    background: var(--bg-dark);
+    border: 1px solid; border-color: var(--chrome-shadow) var(--chrome-mid) var(--chrome-mid) var(--chrome-shadow);
+    width: 100%;
+  }
+  .tool-btn {
+    width: 24px; height: 22px; background: var(--chrome-dark);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .tool-btn:active, .tool-btn.active {
+    border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow);
+    background: var(--bg-lighter); box-shadow: inset 0 0 3px rgba(0, 212, 255, 0.1);
+  }
+  .tool-btn svg { width: 14px; height: 14px; stroke: var(--text-dim); fill: none; stroke-width: 1.5; }
+  .tool-btn.active svg { stroke: var(--accent-cyan); filter: drop-shadow(0 0 2px rgba(0, 212, 255, 0.3)); }
+
+  .line-width-box {
+    width: 100%; margin-top: 4px; padding: 4px;
+    background: var(--bg-dark);
+    border: 1px solid; border-color: var(--chrome-shadow) var(--chrome-mid) var(--chrome-mid) var(--chrome-shadow);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .line-sample { width: 28px; height: 0; border-top-style: solid; border-top-color: var(--text-dim); cursor: pointer; }
+  .line-sample:hover { border-top-color: var(--text-primary); }
+  .line-sample.active { border-top-color: var(--accent-cyan); }
+
+  /* CANVAS */
+  .canvas-container {
+    flex: 1; position: relative; overflow: hidden; background: var(--bg-dark);
+    box-shadow: inset 2px 2px 4px rgba(0,0,0,0.4), inset -1px -1px 0 var(--chrome-mid);
+  }
+  .canvas-surface {
+    position: absolute; inset: 0; background: #c0c0c0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .canvas-logo {
+    max-width: 50%; max-height: 50%; width: auto; height: auto;
+    object-fit: contain; pointer-events: none;
+  }
+
+  /* WATERMARK */
+  .watermark-overlay {
+    display: var(--watermark-display); position: absolute; inset: 0;
+    pointer-events: none; z-index: 10; overflow: hidden;
+  }
+  .watermark-inner {
+    position: absolute; width: 300%; height: 300%; top: -100%; left: -100%;
+    transform: rotate(-45deg); display: flex; flex-wrap: wrap;
+    align-content: flex-start; gap: 40px 60px; padding: 20px;
+  }
+  .watermark-text {
+    font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold;
+    color: rgba(255,255,255,0.07); white-space: nowrap; letter-spacing: 4px; user-select: none;
+  }
+
+  /* VERTICAL SCROLLBAR */
+  .scrollbar-v {
+    width: var(--scrollbar-width); background: var(--scrollbar-bg);
+    border-left: 1px solid var(--chrome-shadow);
+    display: flex; flex-direction: column; flex-shrink: 0; user-select: none;
+  }
+  .scrollbar-arrow {
+    width: 100%; height: var(--scrollbar-width); background: var(--chrome-mid);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  }
+  .scrollbar-arrow:active { border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow); background: var(--chrome-dark); }
+  .scrollbar-arrow svg { width: 8px; height: 8px; stroke: var(--scrollbar-arrow); fill: none; stroke-width: 2; }
+  .scrollbar-track {
+    flex: 1; position: relative; background: var(--scrollbar-bg); cursor: pointer;
+    background-image: linear-gradient(45deg, var(--chrome-dark) 25%, transparent 25%), linear-gradient(-45deg, var(--chrome-dark) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--chrome-dark) 75%), linear-gradient(-45deg, transparent 75%, var(--chrome-dark) 75%);
+    background-size: 4px 4px; background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+  }
+  .scrollbar-thumb {
+    position: absolute; top: 10%; left: 0; right: 0; height: 40px;
+    background: var(--chrome-mid);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    cursor: pointer;
+  }
+  .scrollbar-thumb:active { background: var(--chrome-light); }
+
+  /* HORIZONTAL SCROLLBAR */
+  .scrollbar-h-row { height: var(--scrollbar-width); display: flex; flex-shrink: 0; background: var(--bg-dark); }
+  .scrollbar-h-spacer { width: var(--toolbar-w); flex-shrink: 0; }
+  .scrollbar-h { flex: 1; display: flex; background: var(--scrollbar-bg); border-top: 1px solid var(--chrome-shadow); }
+  .scrollbar-h .scrollbar-arrow { width: var(--scrollbar-width); height: 100%; }
+  .scrollbar-h .scrollbar-track {
+    flex: 1; position: relative;
+    background-image: linear-gradient(45deg, var(--chrome-dark) 25%, transparent 25%), linear-gradient(-45deg, var(--chrome-dark) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--chrome-dark) 75%), linear-gradient(-45deg, transparent 75%, var(--chrome-dark) 75%);
+    background-size: 4px 4px; background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+  }
+  .scrollbar-h .scrollbar-thumb { top: 0; bottom: 0; left: 5%; height: auto; width: 60px; }
+  .scrollbar-h-corner {
+    width: var(--scrollbar-width); background: var(--chrome-mid);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    flex-shrink: 0;
+  }
+
+  /* COLOR PALETTE */
+  .color-bar {
+    height: var(--colorbar-h); display: flex; align-items: center;
+    padding: 4px 6px; gap: 8px; background: var(--bg-medium);
+    border-top: 1px solid var(--chrome-shadow); box-shadow: inset 0 1px 0 var(--chrome-mid);
+    flex-shrink: 0; user-select: none;
+  }
+  .current-colors { position: relative; width: 32px; height: 32px; flex-shrink: 0; cursor: pointer; }
+  .color-bg {
+    position: absolute; bottom: 0; right: 0; width: 22px; height: 22px; background: #000;
+    border: 1px solid; border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow);
+  }
+  .color-fg {
+    position: absolute; top: 0; left: 0; width: 22px; height: 22px; background: var(--accent-cyan);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    box-shadow: 0 0 4px rgba(0, 212, 255, 0.3);
+  }
+  .color-palette-grid { display: flex; flex-direction: column; gap: 1px; }
+  .color-row { display: flex; gap: 1px; }
+  .color-swatch {
+    width: 17px; height: 17px;
+    border: 1px solid; border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow);
+    cursor: pointer;
+  }
+  .color-swatch:hover { border-color: var(--accent-cyan); box-shadow: 0 0 3px rgba(0, 212, 255, 0.2); z-index: 1; position: relative; }
+
+  /* STATUS BAR */
+  .status-bar {
+    height: var(--statusbar-h); display: flex; align-items: center; padding: 0 6px;
+    background: var(--bg-medium); border-top: 1px solid var(--chrome-shadow);
+    box-shadow: inset 0 1px 0 var(--chrome-mid); flex-shrink: 0; user-select: none;
+  }
+  .status-left { flex: 1; display: flex; align-items: center; gap: 8px; }
+  .status-coords { font-size: 10px; color: var(--text-dim); font-family: 'Courier New', monospace; letter-spacing: 0.5px; opacity: 0; }
+  .status-coords.visible { opacity: 1; }
+  .status-text { font-size: 10px; letter-spacing: 2px; color: var(--text-dim); font-family: 'Courier New', monospace; text-transform: uppercase; text-shadow: 0 0 4px rgba(0, 212, 255, 0.15); }
+</style>
+</head>
+<body>
+<div id="mspaint-window">
+
+  <!-- TITLE BAR -->
+  <div class="title-bar">
+    <div class="title-bar-icon">
+      <svg viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="1" width="14" height="14" rx="1" stroke="rgba(255,255,255,0.8)" stroke-width="1" fill="none"/>
+        <circle cx="5" cy="5" r="1.5" fill="#ff4466"/><circle cx="10" cy="5" r="1.5" fill="#44ff88"/>
+        <circle cx="5" cy="10" r="1.5" fill="#4488ff"/><circle cx="10" cy="10" r="1.5" fill="#ffdd44"/>
+        <rect x="7" y="7" width="2" height="2" fill="rgba(255,255,255,0.6)"/>
+      </svg>
+    </div>
+    <div class="title-bar-text">RGBCat.art - Paint</div>
+    <div class="title-bar-controls">
+      <div class="title-btn" onclick="onTitleBtn('minimize')"><span>_</span></div>
+      <div class="title-btn" onclick="onTitleBtn('maximize')"><span>□</span></div>
+      <div class="title-btn close-btn" onclick="onTitleBtn('close')"><span>×</span></div>
+    </div>
+  </div>
+
+  <!-- MENU BAR -->
+  <div class="menu-bar" id="menu-bar">
+    <div class="menu-item-wrapper">
+      <button class="menu-item" data-menu="file" onclick="toggleMenu('file')"><span class="underline">F</span>ile</button>
+      <div class="dropdown-menu" id="menu-file">
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+        <div class="dropdown-separator"></div>
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+      </div>
+    </div>
+    <div class="menu-item-wrapper">
+      <button class="menu-item" data-menu="edit" onclick="toggleMenu('edit')"><span class="underline">E</span>dit</button>
+      <div class="dropdown-menu" id="menu-edit">
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+        <div class="dropdown-separator"></div>
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+      </div>
+    </div>
+    <div class="menu-item-wrapper">
+      <button class="menu-item" data-menu="view" onclick="toggleMenu('view')"><span class="underline">V</span>iew</button>
+      <div class="dropdown-menu" id="menu-view">
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+        <div class="dropdown-separator"></div>
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+      </div>
+    </div>
+    <div class="menu-item-wrapper">
+      <button class="menu-item" data-menu="image" onclick="toggleMenu('image')"><span class="underline">I</span>mage</button>
+      <div class="dropdown-menu" id="menu-image">
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+        <div class="dropdown-separator"></div>
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+      </div>
+    </div>
+    <div class="menu-item-wrapper">
+      <button class="menu-item" data-menu="colors" onclick="toggleMenu('colors')"><span class="underline">C</span>olors</button>
+      <div class="dropdown-menu" id="menu-colors">
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+        <div class="dropdown-separator"></div>
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+      </div>
+    </div>
+    <div class="menu-item-wrapper">
+      <button class="menu-item" data-menu="help" onclick="toggleMenu('help')"><span class="underline">H</span>elp</button>
+      <div class="dropdown-menu" id="menu-help">
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+        <div class="dropdown-separator"></div>
+        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORK AREA -->
+  <div class="work-area">
+
+    <!-- TOOL PALETTE -->
+    <div class="tool-palette">
+      <div class="tool-group" id="tool-group">
+        <div class="tool-btn" data-tool="freeselect" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><path d="M2 10 L4 3 L7 6 L10 2 L12 9 L8 11 Z" stroke-dasharray="2 1"/></svg></div>
+        <div class="tool-btn" data-tool="select" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" stroke-dasharray="2 1"/></svg></div>
+        <div class="tool-btn" data-tool="eraser" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><rect x="3" y="6" width="8" height="5" rx="1"/><line x1="5" y1="6" x2="8" y2="2"/></svg></div>
+        <div class="tool-btn" data-tool="fill" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><path d="M7 2 L9 6 L7 8 L5 6 Z"/><path d="M4 9 Q7 12 10 9"/></svg></div>
+        <div class="tool-btn" data-tool="picker" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><path d="M7 2 L7 10"/><path d="M5 4 L7 2 L9 4"/><circle cx="7" cy="12" r="1"/></svg></div>
+        <div class="tool-btn" data-tool="magnifier" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><circle cx="6" cy="6" r="4"/><line x1="9" y1="9" x2="12" y2="12"/></svg></div>
+        <div class="tool-btn active" data-tool="pencil" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><line x1="3" y1="11" x2="11" y2="3"/><path d="M10 2 L12 4"/></svg></div>
+        <div class="tool-btn" data-tool="brush" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><path d="M3 11 Q5 7 8 5 Q10 4 11 3"/><circle cx="3" cy="11" r="1.5"/></svg></div>
+        <div class="tool-btn" data-tool="airbrush" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><path d="M5 12 L5 5 L8 3"/><circle cx="3" cy="4" r="0.5"/><circle cx="2" cy="6" r="0.5"/><circle cx="4" cy="3" r="0.5"/><circle cx="1" cy="5" r="0.5"/><circle cx="3" cy="7" r="0.5"/></svg></div>
+        <div class="tool-btn" data-tool="text" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><text x="3" y="11" font-size="10" font-family="serif" fill="none" stroke="currentColor" stroke-width="0.8">A</text></svg></div>
+        <div class="tool-btn" data-tool="line" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><line x1="2" y1="12" x2="12" y2="2"/></svg></div>
+        <div class="tool-btn" data-tool="curve" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><path d="M2 10 Q7 0 12 10"/></svg></div>
+        <div class="tool-btn" data-tool="rectangle" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><rect x="2" y="3" width="10" height="8"/></svg></div>
+        <div class="tool-btn" data-tool="polygon" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><polygon points="7,2 12,6 10,12 4,12 2,6"/></svg></div>
+        <div class="tool-btn" data-tool="ellipse" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><ellipse cx="7" cy="7" rx="5" ry="4"/></svg></div>
+        <div class="tool-btn" data-tool="roundrect" onclick="selectTool(this)"><svg viewBox="0 0 14 14"><rect x="2" y="3" width="10" height="8" rx="3"/></svg></div>
+      </div>
+      <div class="line-width-box" id="line-width-box">
+        <div class="line-sample active" data-width="1" style="border-top-width:1px" onclick="selectLineWidth(this)"></div>
+        <div class="line-sample" data-width="2" style="border-top-width:2px" onclick="selectLineWidth(this)"></div>
+        <div class="line-sample" data-width="3" style="border-top-width:3px" onclick="selectLineWidth(this)"></div>
+        <div class="line-sample" data-width="4" style="border-top-width:4px" onclick="selectLineWidth(this)"></div>
+        <div class="line-sample" data-width="5" style="border-top-width:5px" onclick="selectLineWidth(this)"></div>
+      </div>
+    </div>
+
+    <!-- CANVAS -->
+    <div class="canvas-container" id="canvas-container">
+      <div class="canvas-surface" id="canvas-surface">
+        <img src="RGB_TRANS_LOGO2.png" alt="RGBCat.art" class="canvas-logo" draggable="false"/>
+      </div>
+      <div class="watermark-overlay" id="watermark-overlay">
+        <div class="watermark-inner" id="watermark-inner"></div>
+      </div>
+    </div>
+
+    <!-- VERTICAL SCROLLBAR -->
+    <div class="scrollbar-v">
+      <div class="scrollbar-arrow" onclick="onScroll('up')"><svg viewBox="0 0 8 8"><polyline points="1,5 4,2 7,5"/></svg></div>
+      <div class="scrollbar-track" onclick="onScroll('v-track')"><div class="scrollbar-thumb" onclick="onScroll('v-thumb')"></div></div>
+      <div class="scrollbar-arrow" onclick="onScroll('down')"><svg viewBox="0 0 8 8"><polyline points="1,3 4,6 7,3"/></svg></div>
+    </div>
+  </div>
+
+  <!-- HORIZONTAL SCROLLBAR -->
+  <div class="scrollbar-h-row">
+    <div class="scrollbar-h-spacer"></div>
+    <div class="scrollbar-h">
+      <div class="scrollbar-arrow" onclick="onScroll('left')"><svg viewBox="0 0 8 8"><polyline points="5,1 2,4 5,7"/></svg></div>
+      <div class="scrollbar-track" onclick="onScroll('h-track')"><div class="scrollbar-thumb" onclick="onScroll('h-thumb')"></div></div>
+      <div class="scrollbar-arrow" onclick="onScroll('right')"><svg viewBox="0 0 8 8"><polyline points="3,1 6,4 3,7"/></svg></div>
+    </div>
+    <div class="scrollbar-h-corner"></div>
+  </div>
+
+  <!-- COLOR PALETTE -->
+  <div class="color-bar">
+    <div class="current-colors" onclick="onCurrentColor()">
+      <div class="color-bg"></div>
+      <div class="color-fg"></div>
+    </div>
+    <div class="color-palette-grid">
+      <div class="color-row" id="color-row-1"></div>
+      <div class="color-row" id="color-row-2"></div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-left"><span class="status-coords" id="status-coords"></span></div>
+    <span class="status-text">RGBCAT</span>
+  </div>
+</div>
+
+<script>
+  /* ============================================================
+     CONFIG
+     ============================================================ */
+  const WATERMARK_ENABLED = true; // true/false
+
+  /* ============================================================
+     MENU SYSTEM
+     ============================================================ */
+  let openMenu = null;
+
+  function toggleMenu(menuName) {
+    const allMenus = document.querySelectorAll('.dropdown-menu');
+    const allItems = document.querySelectorAll('.menu-item');
+    const target = document.getElementById('menu-' + menuName);
+    const btn = document.querySelector('[data-menu="' + menuName + '"]');
+
+    if (openMenu === menuName) {
+      target.classList.remove('open');
+      btn.classList.remove('active');
+      openMenu = null;
+    } else {
+      allMenus.forEach(m => m.classList.remove('open'));
+      allItems.forEach(b => b.classList.remove('active'));
+      target.classList.add('open');
+      btn.classList.add('active');
+      openMenu = menuName;
+    }
+  }
+
+  // Hover-open adjacent menus
+  document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('mouseenter', () => {
+      if (openMenu !== null) {
+        const menuName = item.getAttribute('data-menu');
+        if (menuName && menuName !== openMenu) {
+          toggleMenu(openMenu);
+          toggleMenu(menuName);
+        }
+      }
+    });
+  });
+
+  // Close on outside click
+  document.addEventListener('click', (e) => {
+    if (openMenu && !e.target.closest('.menu-item-wrapper')) {
+      const menu = document.getElementById('menu-' + openMenu);
+      const btn = document.querySelector('[data-menu="' + openMenu + '"]');
+      if (menu) menu.classList.remove('open');
+      if (btn) btn.classList.remove('active');
+      openMenu = null;
+    }
+  });
+
+  /* ============================================================
+     CONFIGURABLE CALLBACKS
+     All onclick handlers route here — wire up as needed
+     ============================================================ */
+  function onTitleBtn(action) { console.log('Title button:', action); }
+  function selectTool(el) {
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+  }
+  function selectLineWidth(el) {
+    document.querySelectorAll('.line-sample').forEach(l => l.classList.remove('active'));
+    el.classList.add('active');
+  }
+  function onScroll(dir) { console.log('Scroll:', dir); }
+  function onColorSwatch(color, button) { console.log('Color:', color, button); }
+  function onCurrentColor() { console.log('Current color clicked'); }
+
+  /* ============================================================
+     COLOR PALETTE
+     ============================================================ */
+  const paletteRow1 = ['#000000','#808080','#800000','#808000','#008000','#008080','#000080','#800080','#808040','#004040','#0080ff','#004080','#4000ff','#804000','#0d0d18','#1a1a26'];
+  const paletteRow2 = ['#ffffff','#c0c0c0','#ff0000','#ffff00','#00ff00','#00ffff','#0000ff','#ff00ff','#ffff80','#00ff80','#80ffff','#0080ff','#ff0080','#ff8040','#252540','#35355a'];
+
+  function populateColors(rowId, colors) {
+    const row = document.getElementById(rowId);
+    colors.forEach(c => {
+      const s = document.createElement('div');
+      s.className = 'color-swatch';
+      s.style.backgroundColor = c;
+      s.addEventListener('click', () => onColorSwatch(c, 'left'));
+      s.addEventListener('contextmenu', (e) => { e.preventDefault(); onColorSwatch(c, 'right'); });
+      row.appendChild(s);
+    });
+  }
+  populateColors('color-row-1', paletteRow1);
+  populateColors('color-row-2', paletteRow2);
+
+  /* ============================================================
+     CANVAS MOUSE COORDS
+     ============================================================ */
+  const canvasContainer = document.getElementById('canvas-container');
+  const statusCoords = document.getElementById('status-coords');
+  canvasContainer.addEventListener('mousemove', (e) => {
+    const r = canvasContainer.getBoundingClientRect();
+    statusCoords.textContent = Math.round(e.clientX - r.left) + ', ' + Math.round(e.clientY - r.top) + 'px';
+    statusCoords.classList.add('visible');
+  });
+  canvasContainer.addEventListener('mouseleave', () => statusCoords.classList.remove('visible'));
+
+  /* ============================================================
+     WATERMARK
+     ============================================================ */
+  (function() {
+    if (!WATERMARK_ENABLED) {
+      document.documentElement.style.setProperty('--watermark-display', 'none');
+      return;
+    }
+    const c = document.getElementById('watermark-inner');
+    for (let i = 0; i < 200; i++) {
+      const s = document.createElement('span');
+      s.className = 'watermark-text';
+      s.textContent = 'RGBCat.art';
+      c.appendChild(s);
+    }
+  })();
+</script>
+</body>
+</html>
