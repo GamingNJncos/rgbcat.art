@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RGBCat.art - Paint.exe</title>
+<title>RGBCat.art - Paint</title>
 <style>
   :root {
     --bg-darkest: #0a0a0f;
@@ -27,7 +27,6 @@
     --text-dim: #666688;
     --text-disabled: #444466;
     --text-bright: #e0e0ff;
-    --neon-glow: 0 0 4px rgba(0, 212, 255, 0.3), 0 0 8px rgba(0, 212, 255, 0.1);
     --inner-bevel-light: #3a3a5e;
     --inner-bevel-dark: #0e0e1a;
     --scrollbar-width: 17px;
@@ -120,8 +119,7 @@
   .dropdown-item {
     display: block; width: 100%; padding: 4px 24px; color: var(--text-disabled);
     font-size: 12px; cursor: pointer; text-decoration: none; background: none;
-    border: none; font-family: inherit; text-align: left; white-space: nowrap;
-    min-height: 22px;
+    border: none; font-family: inherit; text-align: left; white-space: nowrap; min-height: 22px;
   }
   .dropdown-item:hover { background: linear-gradient(90deg, var(--accent-royal), var(--accent-mid)); color: var(--text-dim); }
   .dropdown-separator { height: 1px; margin: 3px 4px; background: var(--chrome-shadow); border-bottom: 1px solid var(--chrome-mid); }
@@ -170,12 +168,16 @@
     box-shadow: inset 2px 2px 4px rgba(0,0,0,0.4), inset -1px -1px 0 var(--chrome-mid);
   }
   .canvas-surface {
-    position: absolute; inset: 0; background: #c0c0c0;
+    position: absolute; inset: 0;
+    background-color: #c0c0c0;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
     display: flex; align-items: center; justify-content: center;
   }
   .canvas-logo {
-    max-width: 80%; max-height: 80%; width: auto; height: auto;
-    object-fit: contain; pointer-events: none;
+    max-width: 50%; max-height: 50%; width: auto; height: auto;
+    object-fit: contain; pointer-events: none; position: relative; z-index: 1;
   }
 
   /* WATERMARK */
@@ -272,6 +274,130 @@
   .status-coords { font-size: 10px; color: var(--text-dim); font-family: 'Courier New', monospace; letter-spacing: 0.5px; opacity: 0; }
   .status-coords.visible { opacity: 1; }
   .status-text { font-size: 10px; letter-spacing: 2px; color: var(--text-dim); font-family: 'Courier New', monospace; text-transform: uppercase; text-shadow: 0 0 4px rgba(0, 212, 255, 0.15); }
+
+  /* ============================================================
+     DIALOG SYSTEM (shared)
+     ============================================================ */
+  .dialog-overlay {
+    display: none; position: fixed; inset: 0; z-index: 5000;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center; justify-content: center;
+  }
+  .dialog-overlay.open { display: flex; }
+
+  .dialog-window {
+    background: var(--bg-medium);
+    border: 2px solid;
+    border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    box-shadow:
+      4px 4px 12px rgba(0, 0, 0, 0.6),
+      0 0 15px rgba(0, 212, 255, 0.06),
+      inset 1px 1px 0 var(--inner-bevel-light),
+      inset -1px -1px 0 var(--inner-bevel-dark);
+    display: flex; flex-direction: column;
+    user-select: none;
+  }
+
+  .dialog-titlebar {
+    height: 24px; display: flex; align-items: center; padding: 0 3px;
+    background: linear-gradient(90deg, var(--accent-royal) 0%, var(--accent-mid) 50%, var(--accent-cyan) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+    flex-shrink: 0;
+  }
+  .dialog-titlebar-text {
+    flex: 1; font-size: 11px; font-weight: bold; color: #fff;
+    text-shadow: 0 0 6px rgba(0, 212, 255, 0.5), 1px 1px 0 rgba(0,0,0,0.4);
+    letter-spacing: 0.3px;
+  }
+  .dialog-close-btn {
+    width: 16px; height: 14px; background: var(--chrome-mid);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-size: 10px; color: var(--text-dim); font-family: 'Courier New', monospace; font-weight: bold;
+    line-height: 1;
+  }
+  .dialog-close-btn:active {
+    border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow);
+    background: var(--chrome-dark);
+  }
+
+  .dialog-body {
+    padding: 8px;
+  }
+
+  /* ============================================================
+     ABOUT DIALOG
+     ============================================================ */
+  #about-dialog .dialog-window {
+    /* Dynamic: sized by content, but the content area is 100x100 */
+  }
+  .about-content {
+    width: 100px; height: 100px;
+    background: #ffffff;
+    border: 1px solid;
+    border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ============================================================
+     OPEN FILE DIALOG
+     ============================================================ */
+  #open-dialog .dialog-window {
+    min-width: 260px;
+  }
+  .open-dialog-body {
+    padding: 8px;
+  }
+  .open-dialog-label {
+    font-size: 11px; color: var(--text-dim); margin-bottom: 6px;
+    font-family: 'Courier New', monospace;
+  }
+  .file-list {
+    background: var(--bg-dark);
+    border: 1px solid;
+    border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow);
+    padding: 2px;
+  }
+  .file-list-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 6px; cursor: pointer; color: var(--text-disabled);
+    font-size: 11px; font-family: 'Courier New', monospace;
+  }
+  .file-list-item:hover {
+    background: linear-gradient(90deg, var(--accent-royal), var(--accent-mid));
+    color: var(--text-bright);
+  }
+  .file-list-item.selected {
+    background: linear-gradient(90deg, var(--accent-royal), var(--accent-mid));
+    color: var(--text-bright);
+  }
+  .file-icon {
+    width: 16px; height: 16px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .file-icon svg {
+    width: 14px; height: 14px; stroke: var(--text-dim); fill: none; stroke-width: 1.2;
+  }
+  .file-list-item:hover .file-icon svg,
+  .file-list-item.selected .file-icon svg {
+    stroke: var(--text-bright);
+  }
+  .open-dialog-buttons {
+    display: flex; justify-content: flex-end; gap: 6px;
+    margin-top: 8px;
+  }
+  .dialog-btn {
+    padding: 3px 16px; font-size: 11px; font-family: inherit;
+    background: var(--chrome-mid); color: var(--text-dim);
+    border: 1px solid; border-color: var(--chrome-light) var(--chrome-shadow) var(--chrome-shadow) var(--chrome-light);
+    cursor: pointer;
+  }
+  .dialog-btn:hover { color: var(--text-primary); background: var(--chrome-light); }
+  .dialog-btn:active {
+    border-color: var(--chrome-shadow) var(--chrome-light) var(--chrome-light) var(--chrome-shadow);
+    background: var(--chrome-dark);
+  }
 </style>
 </head>
 <body>
@@ -297,14 +423,16 @@
 
   <!-- MENU BAR -->
   <div class="menu-bar" id="menu-bar">
+    <!-- File -->
     <div class="menu-item-wrapper">
       <button class="menu-item" data-menu="file" onclick="toggleMenu('file')"><span class="underline">F</span>ile</button>
       <div class="dropdown-menu" id="menu-file">
-        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+        <button class="dropdown-item" onclick="openOpenDialog()">Open</button>
         <div class="dropdown-separator"></div>
         <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
       </div>
     </div>
+    <!-- Edit -->
     <div class="menu-item-wrapper">
       <button class="menu-item" data-menu="edit" onclick="toggleMenu('edit')"><span class="underline">E</span>dit</button>
       <div class="dropdown-menu" id="menu-edit">
@@ -313,6 +441,7 @@
         <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
       </div>
     </div>
+    <!-- View -->
     <div class="menu-item-wrapper">
       <button class="menu-item" data-menu="view" onclick="toggleMenu('view')"><span class="underline">V</span>iew</button>
       <div class="dropdown-menu" id="menu-view">
@@ -321,6 +450,7 @@
         <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
       </div>
     </div>
+    <!-- Image -->
     <div class="menu-item-wrapper">
       <button class="menu-item" data-menu="image" onclick="toggleMenu('image')"><span class="underline">I</span>mage</button>
       <div class="dropdown-menu" id="menu-image">
@@ -329,6 +459,7 @@
         <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
       </div>
     </div>
+    <!-- Colors -->
     <div class="menu-item-wrapper">
       <button class="menu-item" data-menu="colors" onclick="toggleMenu('colors')"><span class="underline">C</span>olors</button>
       <div class="dropdown-menu" id="menu-colors">
@@ -337,10 +468,11 @@
         <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
       </div>
     </div>
+    <!-- Help -->
     <div class="menu-item-wrapper">
       <button class="menu-item" data-menu="help" onclick="toggleMenu('help')"><span class="underline">H</span>elp</button>
       <div class="dropdown-menu" id="menu-help">
-        <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
+        <button class="dropdown-item" onclick="openAboutDialog()">About</button>
         <div class="dropdown-separator"></div>
         <a href="https://rgbcat.art" class="dropdown-item">&#8203;</a>
       </div>
@@ -349,7 +481,6 @@
 
   <!-- WORK AREA -->
   <div class="work-area">
-
     <!-- TOOL PALETTE -->
     <div class="tool-palette">
       <div class="tool-group" id="tool-group">
@@ -382,7 +513,7 @@
     <!-- CANVAS -->
     <div class="canvas-container" id="canvas-container">
       <div class="canvas-surface" id="canvas-surface">
-        <img src="RGB_TRANS_small.png" alt="RGBCat.art" class="canvas-logo" draggable="false"/>
+        <img src="RGB_TRANS_LOGO2.png" alt="RGBCat.art" class="canvas-logo" draggable="false"/>
       </div>
       <div class="watermark-overlay" id="watermark-overlay">
         <div class="watermark-inner" id="watermark-inner"></div>
@@ -427,11 +558,61 @@
   </div>
 </div>
 
+<!-- ============================================================
+     ABOUT DIALOG
+     ============================================================ -->
+<div class="dialog-overlay" id="about-dialog" onclick="closeAboutDialog(event)">
+  <div class="dialog-window" onclick="event.stopPropagation()">
+    <div class="dialog-titlebar">
+      <span class="dialog-titlebar-text">About</span>
+      <div class="dialog-close-btn" onclick="closeAboutDialog()">×</div>
+    </div>
+    <div class="dialog-body">
+      <div class="about-content" id="about-content">
+        <!-- Configure about content here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     OPEN FILE DIALOG
+     ============================================================ -->
+<div class="dialog-overlay" id="open-dialog" onclick="closeOpenDialog(event)">
+  <div class="dialog-window" onclick="event.stopPropagation()">
+    <div class="dialog-titlebar">
+      <span class="dialog-titlebar-text">Open</span>
+      <div class="dialog-close-btn" onclick="closeOpenDialog()">×</div>
+    </div>
+    <div class="open-dialog-body">
+      <div class="open-dialog-label">File name:</div>
+      <div class="file-list" id="file-list">
+        <div class="file-list-item" data-file="CAT.JPG" onclick="selectFile(this)">
+          <div class="file-icon"><svg viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="1"/><circle cx="4" cy="5" r="1.5"/><polyline points="1,10 5,7 8,9 11,6 13,8 13,13 1,13"/></svg></div>
+          <span>CAT.JPG</span>
+        </div>
+        <div class="file-list-item" data-file="Nyan.jpg" onclick="selectFile(this)">
+          <div class="file-icon"><svg viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="1"/><circle cx="4" cy="5" r="1.5"/><polyline points="1,10 5,7 8,9 11,6 13,8 13,13 1,13"/></svg></div>
+          <span>Nyan.jpg</span>
+        </div>
+        <div class="file-list-item" data-file="chonk.jpg" onclick="selectFile(this)">
+          <div class="file-icon"><svg viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="1"/><circle cx="4" cy="5" r="1.5"/><polyline points="1,10 5,7 8,9 11,6 13,8 13,13 1,13"/></svg></div>
+          <span>chonk.jpg</span>
+        </div>
+      </div>
+      <div class="open-dialog-buttons">
+        <button class="dialog-btn" onclick="confirmOpenFile()">Open</button>
+        <button class="dialog-btn" onclick="closeOpenDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   /* ============================================================
      CONFIG
      ============================================================ */
-  const WATERMARK_ENABLED = true; // true/false
+  const WATERMARK_ENABLED = true;
 
   /* ============================================================
      MENU SYSTEM
@@ -443,34 +624,24 @@
     const allItems = document.querySelectorAll('.menu-item');
     const target = document.getElementById('menu-' + menuName);
     const btn = document.querySelector('[data-menu="' + menuName + '"]');
-
     if (openMenu === menuName) {
-      target.classList.remove('open');
-      btn.classList.remove('active');
-      openMenu = null;
+      target.classList.remove('open'); btn.classList.remove('active'); openMenu = null;
     } else {
       allMenus.forEach(m => m.classList.remove('open'));
       allItems.forEach(b => b.classList.remove('active'));
-      target.classList.add('open');
-      btn.classList.add('active');
-      openMenu = menuName;
+      target.classList.add('open'); btn.classList.add('active'); openMenu = menuName;
     }
   }
 
-  // Hover-open adjacent menus
   document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('mouseenter', () => {
       if (openMenu !== null) {
         const menuName = item.getAttribute('data-menu');
-        if (menuName && menuName !== openMenu) {
-          toggleMenu(openMenu);
-          toggleMenu(menuName);
-        }
+        if (menuName && menuName !== openMenu) { toggleMenu(openMenu); toggleMenu(menuName); }
       }
     });
   });
 
-  // Close on outside click
   document.addEventListener('click', (e) => {
     if (openMenu && !e.target.closest('.menu-item-wrapper')) {
       const menu = document.getElementById('menu-' + openMenu);
@@ -482,8 +653,67 @@
   });
 
   /* ============================================================
-     CONFIGURABLE CALLBACKS
-     All onclick handlers route here — wire up as needed
+     ABOUT DIALOG
+     ============================================================ */
+  function openAboutDialog() {
+    // Close any open menu first
+    if (openMenu) {
+      document.getElementById('menu-' + openMenu).classList.remove('open');
+      document.querySelector('[data-menu="' + openMenu + '"]').classList.remove('active');
+      openMenu = null;
+    }
+    document.getElementById('about-dialog').classList.add('open');
+  }
+
+  function closeAboutDialog(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('about-dialog').classList.remove('open');
+  }
+
+  /* ============================================================
+     OPEN FILE DIALOG
+     ============================================================ */
+  let selectedFile = null;
+
+  function openOpenDialog() {
+    if (openMenu) {
+      document.getElementById('menu-' + openMenu).classList.remove('open');
+      document.querySelector('[data-menu="' + openMenu + '"]').classList.remove('active');
+      openMenu = null;
+    }
+    selectedFile = null;
+    document.querySelectorAll('.file-list-item').forEach(i => i.classList.remove('selected'));
+    document.getElementById('open-dialog').classList.add('open');
+  }
+
+  function closeOpenDialog(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('open-dialog').classList.remove('open');
+  }
+
+  function selectFile(el) {
+    document.querySelectorAll('.file-list-item').forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedFile = el.getAttribute('data-file');
+  }
+
+  function confirmOpenFile() {
+    if (!selectedFile) return;
+    const surface = document.getElementById('canvas-surface');
+    surface.style.backgroundImage = 'url(' + selectedFile + ')';
+    closeOpenDialog();
+  }
+
+  // Double-click to open immediately
+  document.querySelectorAll('.file-list-item').forEach(item => {
+    item.addEventListener('dblclick', () => {
+      selectedFile = item.getAttribute('data-file');
+      confirmOpenFile();
+    });
+  });
+
+  /* ============================================================
+     CALLBACKS
      ============================================================ */
   function onTitleBtn(action) { console.log('Title button:', action); }
   function selectTool(el) {
@@ -508,8 +738,7 @@
     const row = document.getElementById(rowId);
     colors.forEach(c => {
       const s = document.createElement('div');
-      s.className = 'color-swatch';
-      s.style.backgroundColor = c;
+      s.className = 'color-swatch'; s.style.backgroundColor = c;
       s.addEventListener('click', () => onColorSwatch(c, 'left'));
       s.addEventListener('contextmenu', (e) => { e.preventDefault(); onColorSwatch(c, 'right'); });
       row.appendChild(s);
@@ -531,19 +760,24 @@
   canvasContainer.addEventListener('mouseleave', () => statusCoords.classList.remove('visible'));
 
   /* ============================================================
+     ESC to close dialogs
+     ============================================================ */
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('about-dialog').classList.remove('open');
+      document.getElementById('open-dialog').classList.remove('open');
+    }
+  });
+
+  /* ============================================================
      WATERMARK
      ============================================================ */
   (function() {
-    if (!WATERMARK_ENABLED) {
-      document.documentElement.style.setProperty('--watermark-display', 'none');
-      return;
-    }
+    if (!WATERMARK_ENABLED) { document.documentElement.style.setProperty('--watermark-display', 'none'); return; }
     const c = document.getElementById('watermark-inner');
     for (let i = 0; i < 200; i++) {
-      const s = document.createElement('span');
-      s.className = 'watermark-text';
-      s.textContent = 'RGBCat.art';
-      c.appendChild(s);
+      const s = document.createElement('span'); s.className = 'watermark-text';
+      s.textContent = 'RGBCat.art'; c.appendChild(s);
     }
   })();
 </script>
